@@ -282,9 +282,9 @@ data/audio/your_name/
 
 2. Build the authentication flow:
 
-   - Check face → if authorized, allow access
+   - Check face -> if authorized, allow access
    - Run product prediction
-   - Check voice → if authorized, show prediction
+   - Check voice -> if authorized, show prediction
    - Handle rejections appropriately
 
 3. Create a command-line app:
@@ -402,12 +402,12 @@ model = joblib.load('models/model_name.pkl')
 
 **Show these scenarios:**
 
-1. Unauthorized face → "Access Denied"
-2. Unauthorized voice → "Access Denied"
+1. Unauthorized face -> "Access Denied"
+2. Unauthorized voice -> "Access Denied"
 3. Full successful flow:
-   - Authorized face → Access granted
+   - Authorized face -> Access granted
    - Product prediction runs
-   - Authorized voice → Prediction confirmed
+   - Authorized voice -> Prediction confirmed
    - Product recommendation displayed
 
 **Video format:**

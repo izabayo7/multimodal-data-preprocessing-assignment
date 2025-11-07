@@ -46,10 +46,10 @@ git checkout -b feature/your-task-name
 
 ### Task Assignments
 
-- **Alice**: Data merge + product model → `src/data_processing/merge_data.py`, `src/models/product_recommender.py`
-- **Yassin**: Image processing + face recognition → `src/data_processing/image_processing.py`, `src/models/face_recognition.py`
-- **Brian**: Audio processing + voice verification → `src/data_processing/audio_processing.py`, `src/models/voice_verification.py`
-- **Cedric**: Pipeline integration → `src/pipeline/authentication_pipeline.py`, `scripts/run_authentication_system.py`
+- **Alice**: Data merge + product model -> `src/data_processing/merge_data.py`, `src/models/product_recommender.py`
+- **Yassin**: Image processing + face recognition -> `src/data_processing/image_processing.py`, `src/models/face_recognition.py`
+- **Brian**: Audio processing + voice verification -> `src/data_processing/audio_processing.py`, `src/models/voice_verification.py`
+- **Cedric**: Pipeline integration -> `src/pipeline/authentication_pipeline.py`, `scripts/run_authentication_system.py`
 
 ### Push Your Work
 
