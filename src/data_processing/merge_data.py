@@ -104,7 +104,7 @@ def standardize_customer_ids(social_df, transactions_df):
     - Different formats prevent direct merging
     
     Solution:
-    - Extract numeric part from social profiles IDs (A178 → 178)
+    - Extract numeric part from social profiles IDs (A178 -> 178)
     - Rename legacy IDs to standard 'customer_id' column
     - Create common 'customer_id' column in both datasets
     
@@ -118,7 +118,7 @@ def standardize_customer_ids(social_df, transactions_df):
     """
     # STEP 1: Extract numeric part from alphanumeric IDs
     # Uses regex to find digits (\d+) and convert to integer
-    # Example: 'A178' → '178' → 178
+    # Example: 'A178' -> '178' -> 178
     social_df['customer_id'] = social_df['customer_id_new'].str.extract('(\d+)').astype(int)
     
     # STEP 2: Rename legacy ID column to standard name
@@ -210,7 +210,7 @@ def prepare_features(merged_df, target_column):
     categorical_cols = X.select_dtypes(include=['object']).columns
     numerical_cols = X.select_dtypes(include=[np.number]).columns
     
-    # Convert categorical text to numbers (e.g., 'Twitter' → 4)
+    # Convert categorical text to numbers (e.g., 'Twitter' -> 4)
     label_encoders = {}
     for col in categorical_cols:
         le = LabelEncoder()
@@ -222,7 +222,7 @@ def prepare_features(merged_df, target_column):
     if len(numerical_cols) > 0:
         X[numerical_cols] = scaler.fit_transform(X[numerical_cols])
     
-    # Encode target variable if categorical (e.g., 'Sports' → 4)
+    # Encode target variable if categorical (e.g., 'Sports' -> 4)
     if y.dtype == 'object':
         target_encoder = LabelEncoder()
         y_encoded = target_encoder.fit_transform(y)
