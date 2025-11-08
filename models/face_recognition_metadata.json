@@ -22,6 +22,6 @@
     "test_f1_weighted": 1.0,
     "test_f1_macro": 1.0,
     "test_log_loss": 0.19059206104675736,
-    "training_time_seconds": 0.2203657627105713,
-    "trained_date": "2025-11-07 20:59:55"
+    "training_time_seconds": 0.6643645763397217,
+    "trained_date": "2025-11-08 14:39:00"
 }
