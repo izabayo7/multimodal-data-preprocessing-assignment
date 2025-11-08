@@ -18,7 +18,11 @@ import os
 import argparse
 import pandas as pd
 from pathlib import Path
-from predict_face import FaceRecognitionPredictor
+from predict_face import EnhancedFaceRecognitionPredictor
+
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from src.config import Config
 
 
 def find_images_in_directory(directory, extensions=('.jpg', '.jpeg', '.png', '.bmp')):
@@ -59,7 +63,10 @@ def batch_predict(image_paths, model_dir='../models', save_results=False, output
     print(f"\nTotal images to process: {len(image_paths)}")
     
     # Initialize predictor
-    predictor = FaceRecognitionPredictor(model_dir=model_dir)
+    predictor = EnhancedFaceRecognitionPredictor(model_dir=model_dir)
+    
+    # Get users dynamically from Config
+    users = Config.get_users()
     
     # Store results
     results = []
@@ -74,33 +81,39 @@ def batch_predict(image_paths, model_dir='../models', save_results=False, output
             # Make prediction
             result = predictor.predict(str(image_path), show_probabilities=False)
             
-            # Store result
-            results.append({
+            # Store result - dynamically create probability fields for each user
+            result_dict = {
                 'image_path': str(image_path),
                 'image_name': os.path.basename(image_path),
                 'predicted_user': result['predicted_user'],
-                'confidence': result['confidence'],
-                'alice_prob': result['probabilities']['Alice'],
-                'armstrong_prob': result['probabilities']['Armstrong'],
-                'cedric_prob': result['probabilities']['cedric'],
-                'yassin_prob': result['probabilities']['yassin']
-            })
+                'confidence': result['confidence']
+            }
+            
+            # Add probability for each user dynamically
+            for user in users:
+                result_dict[f'{user.lower()}_prob'] = result['probabilities'].get(user, 0.0)
+            
+            results.append(result_dict)
             
             print(f"Success: {result['predicted_user']} ({result['confidence']:.1f}% confidence)")
             
         except Exception as e:
             print(f"Error processing image: {str(e)}")
-            results.append({
+            
+            # Store error result - dynamically create probability fields for each user
+            error_dict = {
                 'image_path': str(image_path),
                 'image_name': os.path.basename(image_path),
                 'predicted_user': 'ERROR',
-                'confidence': 0.0,
-                'alice_prob': 0.0,
-                'armstrong_prob': 0.0,
-                'cedric_prob': 0.0,
-                'yassin_prob': 0.0,
-                'error': str(e)
-            })
+                'confidence': 0.0
+            }
+            
+            # Add zero probability for each user dynamically
+            for user in users:
+                error_dict[f'{user.lower()}_prob'] = 0.0
+            
+            error_dict['error'] = str(e)
+            results.append(error_dict)
     
     # Create DataFrame
     df_results = pd.DataFrame(results)
@@ -119,7 +132,7 @@ def batch_predict(image_paths, model_dir='../models', save_results=False, output
     
     if successful > 0:
         print(f"\nPrediction Distribution:")
-        for user in ['Alice', 'Armstrong', 'cedric', 'yassin']:
+        for user in users:
             count = len(df_results[df_results['predicted_user'] == user])
             print(f"  {user}: {count} images")
         
@@ -178,8 +191,8 @@ Examples:
     parser.add_argument(
         '--model-dir',
         type=str,
-        default='../models',
-        help='Directory containing trained model files (default: ../models)'
+        default=None,
+        help=f'Directory containing trained model files (default: {Config.MODELS_DIR})'
     )
     
     parser.add_argument(
@@ -217,10 +230,13 @@ Examples:
         return 1
     
     try:
+        # Use Config default if model_dir not specified
+        model_dir = args.model_dir if args.model_dir else str(Config.MODELS_DIR)
+        
         # Run batch prediction
-        results = batch_predict(
+        batch_predict(
             image_paths,
-            model_dir=args.model_dir,
+            model_dir=model_dir,
             save_results=bool(args.save),
             output_file=args.save if args.save else 'predictions.csv'
         )

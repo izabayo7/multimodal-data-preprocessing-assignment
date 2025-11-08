@@ -10,31 +10,34 @@ Usage:
 
 import cv2
 import matplotlib.pyplot as plt
-import os
+import sys
 from pathlib import Path
 
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from src.config import Config
 
-def display_member_images(base_dir='../data/images', save_output=False, output_path='../reports/sample_images.png'):
+
+def display_member_images(base_dir=None, save_output=False, output_path=None):
     """
     Display sample images of each team member
     
     Args:
-        base_dir: Base directory containing member image folders
+        base_dir: Directory containing member image folders (default: Config.IMAGES_DIR)
         save_output: Whether to save the output figure
-        output_path: Path to save the figure if save_output is True
+        output_path: Output file path for saved figure (default: Config.SAMPLE_IMAGES_REPORT)
     """
-    # Get the script directory and construct absolute path
-    script_dir = Path(__file__).parent.absolute()
-    base_image_dir = (script_dir / base_dir).resolve()
-    
-    # Define members and expressions
-    members = ['Alice', 'Armstrong', 'cedric', 'yassin']
-    expressions = ['neutral', 'smiling', 'surprised']
+    # Use configuration with optional overrides
+    base_image_dir = Path(base_dir) if base_dir else Config.IMAGES_DIR
+    members = Config.get_users()
+    expressions = Config.EXPRESSIONS
+    output_file_path = Path(output_path) if output_path else Config.SAMPLE_IMAGES_REPORT
     
     print("="*70)
     print("SAMPLE IMAGES VIEWER")
     print("="*70)
-    print(f"Image directory: {base_image_dir}\n")
+    print(f"Image directory: {base_image_dir}")
+    print(f"Team members: {', '.join(members)}\n")
     
     # Create a figure to display all images (4 members x 3 expressions)
     num_members = len(members)
@@ -100,10 +103,9 @@ def display_member_images(base_dir='../data/images', save_output=False, output_p
     
     # Save if requested
     if save_output:
-        output_file = (script_dir / output_path).resolve()
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        plt.savefig(output_file, dpi=150, bbox_inches='tight')
-        print(f"Figure saved to: {output_file}\n")
+        output_file_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(output_file_path, dpi=150, bbox_inches='tight')
+        print(f"Figure saved to: {output_file_path}\n")
     
     plt.show()
     
@@ -137,18 +139,18 @@ Examples:
   python display_sample_images.py --save
   
   # Custom image directory
-  python display_sample_images.py --image-dir ../data/images
+  python display_sample_images.py --image-dir /path/to/images
   
   # Save to custom location
-  python display_sample_images.py --save --output ../reports/team_photos.png
+  python display_sample_images.py --save --output /path/to/output.png
         '''
     )
     
     parser.add_argument(
         '--image-dir',
         type=str,
-        default='../data/images',
-        help='Directory containing member image folders (default: ../data/images)'
+        default=None,
+        help=f'Directory containing member image folders (default: {Config.IMAGES_DIR})'
     )
     
     parser.add_argument(
@@ -160,17 +162,21 @@ Examples:
     parser.add_argument(
         '--output',
         type=str,
-        default='../reports/sample_images.png',
-        help='Output file path for saved figure (default: ../reports/sample_images.png)'
+        default=None,
+        help=f'Output file path for saved figure (default: {Config.SAMPLE_IMAGES_REPORT})'
     )
     
     args = parser.parse_args()
     
+    # Use Config defaults if not specified
+    base_dir = Path(args.image_dir) if args.image_dir else Config.IMAGES_DIR
+    output_path = Path(args.output) if args.output else Config.SAMPLE_IMAGES_REPORT
+    
     try:
         display_member_images(
-            base_dir=args.image_dir,
+            base_dir=base_dir,
             save_output=args.save,
-            output_path=args.output
+            output_path=output_path
         )
         return 0
     except Exception as e:
