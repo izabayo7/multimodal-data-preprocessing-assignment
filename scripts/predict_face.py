@@ -12,12 +12,17 @@ Usage:
 import sys
 import os
 import argparse
+import json
 import numpy as np
 import cv2
 import joblib
 from pathlib import Path
 from tensorflow.keras.applications import VGG16
 from tensorflow.keras.applications.vgg16 import preprocess_input
+
+# Add src directory to path for Config import
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from src.config import Config
 
 
 class EnhancedFaceRecognitionPredictor:
@@ -38,11 +43,14 @@ class EnhancedFaceRecognitionPredictor:
         self.model_dir = (script_dir / model_dir).resolve()
         
         self.target_size = (224, 224)
-        self.user_mapping = {0: 'Alice', 1: 'Armstrong', 2: 'cedric', 3: 'yassin'}
         self.confidence_threshold = confidence_threshold
         
         # Load the trained model and scaler
         self.load_model()
+        
+        # Load metadata to get the class names used during training
+        # This ensures label mapping matches what was used during training
+        self.load_metadata()
         
         # Load VGG16 for feature extraction
         self.load_feature_extractor()
@@ -68,6 +76,35 @@ class EnhancedFaceRecognitionPredictor:
         except FileNotFoundError:
             print(f"ERROR: Could not find model files in {self.model_dir}")
             sys.exit(1)
+    
+    def load_metadata(self):
+        """
+        Load metadata to get the class names used during training.
+        This ensures label mapping matches what was used during training,
+        preventing misidentification if filesystem changes after training.
+        """
+        try:
+            metadata_path = self.model_dir / 'face_recognition_metadata.json'
+            with open(metadata_path, 'r') as f:
+                metadata = json.load(f)
+            
+            class_names = metadata['class_names']
+            # Create reverse label mapping: label_index -> user_name
+            self.user_mapping = {i: name for i, name in enumerate(class_names)}
+            
+            print(f"Loaded class names from training: {class_names}")
+            
+        except FileNotFoundError:
+            print(f"WARNING: Metadata file not found at {metadata_path}")
+            print("Falling back to Config defaults (may cause incorrect predictions)")
+            # Fallback to Config defaults
+            default_users = Config.get_users()
+            self.user_mapping = Config.get_reverse_label_mapping(users=default_users)
+        except (KeyError, json.JSONDecodeError) as e:
+            print(f"WARNING: Error reading metadata: {e}")
+            print("Falling back to Config defaults")
+            default_users = Config.get_users()
+            self.user_mapping = Config.get_reverse_label_mapping(users=default_users)
     
     def load_feature_extractor(self):
         """Load VGG16 model for feature extraction"""
