@@ -41,7 +41,7 @@ class ImageProcessor:
     Uses VGG16 pre-trained on ImageNet for feature extraction.
     """
     
-    def __init__(self, base_dir='../../data/images', target_size=(224, 224)):
+    def __init__(self, base_dir=None, target_size=(224, 224)):
         """
         Initialize the image processor with configuration.
         
@@ -49,9 +49,16 @@ class ImageProcessor:
             base_dir: Path to the images directory containing user folders
             target_size: Image dimensions required by VGG16 (224x224)
         """
-        self.base_dir = base_dir
+        # Auto-detect base_dir if not provided
+        if base_dir is None:
+            # Get the project root directory (2 levels up from this file)
+            current_file = Path(__file__).resolve()
+            project_root = current_file.parent.parent.parent
+            base_dir = project_root / 'data' / 'images'
+        
+        self.base_dir = str(base_dir)
         self.target_size = target_size
-        self.users = ['Alice', 'cedric', 'yassin']
+        self.users = ['Alice', 'Armstrong', 'cedric', 'yassin']
         
         # Load pre-trained VGG16 model without the top classification layer
         # This gives us a 512-dimensional feature vector for each image
@@ -216,8 +223,8 @@ class ImageProcessor:
                 feature_dict[f'color_hist_{i}'] = feature_value
             
             # Add numeric label for classification
-            # Alice=0, cedric=1, yassin=2
-            label_map = {'Alice': 0, 'cedric': 1, 'yassin': 2}
+            # Alice=0, Armstrong=1, cedric=2, yassin=3
+            label_map = {'Alice': 0, 'Armstrong': 1, 'cedric': 2, 'yassin': 3}
             feature_dict['label'] = label_map[user]
             
             features_list.append(feature_dict)
@@ -313,8 +320,9 @@ class ImageProcessor:
         # Define expressions to display
         expressions = ['neutral', 'smiling', 'surprised']
         
-        # Create a figure to display all images
-        fig, axes = plt.subplots(3, 3, figsize=(15, 12))
+        # Create a figure to display all images (4 users x 3 expressions)
+        num_users = len(self.users)
+        fig, axes = plt.subplots(num_users, 3, figsize=(15, num_users * 4))
         fig.suptitle('Sample Images from Each Team Member', 
                      fontsize=16, fontweight='bold', y=0.98)
         
