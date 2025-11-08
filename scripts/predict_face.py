@@ -19,6 +19,10 @@ from pathlib import Path
 from tensorflow.keras.applications import VGG16
 from tensorflow.keras.applications.vgg16 import preprocess_input
 
+# Add src directory to path for Config import
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from src.config import Config
+
 
 class EnhancedFaceRecognitionPredictor:
     """
@@ -38,7 +42,9 @@ class EnhancedFaceRecognitionPredictor:
         self.model_dir = (script_dir / model_dir).resolve()
         
         self.target_size = (224, 224)
-        self.user_mapping = {0: 'Alice', 1: 'Armstrong', 2: 'cedric', 3: 'yassin'}
+        # Use Config for dynamic user mapping (auto-detect from filesystem)
+        detected_users = Config.get_users(auto_detect=True)
+        self.user_mapping = Config.get_reverse_label_mapping(users=detected_users)
         self.confidence_threshold = confidence_threshold
         
         # Load the trained model and scaler
