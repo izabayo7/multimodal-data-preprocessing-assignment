@@ -21,6 +21,20 @@ Key Functions:
 - extract_features(): Use pre-trained VGG16 to extract feature embeddings
 - process_all_images(): Main pipeline function
 - save_features_to_csv(): Export features to image_features.csv
+
+Usage Examples:
+    # Auto-detect users from data/images directory
+    processor = ImageProcessor()
+    
+    # Specify custom users list
+    processor = ImageProcessor(users=['Alice', 'Bob', 'Charlie'])
+    
+    # Specify custom directory and users
+    processor = ImageProcessor(base_dir='/path/to/images', users=['User1', 'User2'])
+    
+    # Process images
+    features = processor.process_all_images()
+    processor.save_features_to_csv(features)
 """
 
 import os
@@ -29,7 +43,6 @@ import numpy as np
 import pandas as pd
 from tensorflow.keras.applications import VGG16
 from tensorflow.keras.applications.vgg16 import preprocess_input
-from tensorflow.keras.preprocessing import image as keras_image
 from tensorflow.keras.models import Model
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -41,13 +54,14 @@ class ImageProcessor:
     Uses VGG16 pre-trained on ImageNet for feature extraction.
     """
     
-    def __init__(self, base_dir=None, target_size=(224, 224)):
+    def __init__(self, base_dir=None, target_size=(224, 224), users=None):
         """
         Initialize the image processor with configuration.
         
         Args:
             base_dir: Path to the images directory containing user folders
             target_size: Image dimensions required by VGG16 (224x224)
+            users: List of user names to process. If None, auto-detects from base_dir
         """
         # Auto-detect base_dir if not provided
         if base_dir is None:
@@ -58,14 +72,49 @@ class ImageProcessor:
         
         self.base_dir = str(base_dir)
         self.target_size = target_size
-        self.users = ['Alice', 'Armstrong', 'cedric', 'yassin']
+        
+        # Auto-detect users from directory if not provided
+        if users is None:
+            self.users = self._auto_detect_users()
+        else:
+            self.users = users
         
         # Load pre-trained VGG16 model without the top classification layer
         # This gives us a 512-dimensional feature vector for each image
         base_model = VGG16(weights='imagenet', include_top=False, pooling='avg')
         self.feature_extractor = Model(inputs=base_model.input, outputs=base_model.output)
         
-        print("Image processor initialized with VGG16 feature extractor")
+        print(f"Image processor initialized with VGG16 feature extractor")
+        print(f"Users to process: {self.users}")
+    
+    def _auto_detect_users(self):
+        """
+        Automatically detect user directories from the base_dir.
+        
+        Returns:
+            List of user names (directory names) found in base_dir
+        """
+        try:
+            base_path = Path(self.base_dir)
+            if not base_path.exists():
+                print(f"Warning: Base directory {self.base_dir} does not exist")
+                return []
+            
+            # Get all subdirectories (user folders)
+            users = [d.name for d in base_path.iterdir() 
+                    if d.is_dir() 
+                    and not d.name.startswith('.') 
+                    and d.name.lower() not in ['test', 'temp', 'backup']]
+            
+            if not users:
+                print(f"Warning: No user directories found in {self.base_dir}")
+            else:
+                print(f"Auto-detected {len(users)} user(s): {users}")
+            
+            return sorted(users)  # Sort for consistency
+        except Exception as e:
+            print(f"Error detecting users: {e}")
+            return []
     
     def load_image(self, image_path):
         """
@@ -223,9 +272,14 @@ class ImageProcessor:
                 feature_dict[f'color_hist_{i}'] = feature_value
             
             # Add numeric label for classification
-            # Alice=0, Armstrong=1, cedric=2, yassin=3
-            label_map = {'Alice': 0, 'Armstrong': 1, 'cedric': 2, 'yassin': 3}
-            feature_dict['label'] = label_map[user]
+            # Dynamically create label mapping based on sorted users list
+            label_map = {name: idx for idx, name in enumerate(sorted(self.users))}
+            
+            # Only add label if user is in the current users list
+            if user in label_map:
+                feature_dict['label'] = label_map[user]
+            else:
+                feature_dict['label'] = -1  # Unknown user
             
             features_list.append(feature_dict)
         
@@ -285,22 +339,31 @@ class ImageProcessor:
         
         return df_features
     
-    def save_features_to_csv(self, df_features, output_path='../../data/features/image_features.csv'):
+    def save_features_to_csv(self, df_features, output_path=None):
         """
         Save extracted features to CSV file for model training.
         
         Args:
             df_features: DataFrame containing features and metadata
-            output_path: Path to save the CSV file
+            output_path: Path to save the CSV file. If None, uses default location
+                        in project's data/features/image_features.csv
         """
+        # Use default path if not provided
+        if output_path is None:
+            # Get project root (3 levels up from this file)
+            project_root = Path(__file__).resolve().parent.parent.parent
+            output_path = project_root / 'data' / 'features' / 'image_features.csv'
+        else:
+            output_path = Path(output_path)
+        
         # Ensure output directory exists
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         
         # Save to CSV
         df_features.to_csv(output_path, index=False)
         
         print(f"\nFeatures saved to: {output_path}")
-        print(f"File size: {os.path.getsize(output_path) / (1024*1024):.2f} MB")
+        print(f"File size: {output_path.stat().st_size / (1024*1024):.2f} MB")
         print(f"Shape: {df_features.shape}")
     
     def display_sample_images(self, save_output=True):
@@ -384,8 +447,10 @@ class ImageProcessor:
         
         # Save if requested
         if save_output:
-            output_path = os.path.join('../../reports', 'sample_images.png')
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            # Get project root (3 levels up from this file)
+            project_root = Path(__file__).resolve().parent.parent.parent
+            output_path = project_root / 'reports' / 'sample_images.png'
+            output_path.parent.mkdir(parents=True, exist_ok=True)
             plt.savefig(output_path, dpi=150, bbox_inches='tight')
             print(f"\nFigure saved to: {output_path}")
         
@@ -393,7 +458,7 @@ class ImageProcessor:
         try:
             plt.show(block=False)
             plt.pause(0.1)  # Brief pause to render
-        except:
+        except Exception:
             pass  # Skip if not in interactive environment
         
         plt.close()  # Close to free memory
