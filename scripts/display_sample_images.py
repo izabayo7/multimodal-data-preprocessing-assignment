@@ -28,7 +28,7 @@ def display_member_images(base_dir='../data/images', save_output=False, output_p
     base_image_dir = (script_dir / base_dir).resolve()
     
     # Define members and expressions
-    members = ['Alice', 'cedric', 'yassin']
+    members = ['Alice', 'Armstrong', 'cedric', 'yassin']
     expressions = ['neutral', 'smiling', 'surprised']
     
     print("="*70)
@@ -36,8 +36,9 @@ def display_member_images(base_dir='../data/images', save_output=False, output_p
     print("="*70)
     print(f"Image directory: {base_image_dir}\n")
     
-    # Create a figure to display all images
-    fig, axes = plt.subplots(3, 3, figsize=(15, 12))
+    # Create a figure to display all images (4 members x 3 expressions)
+    num_members = len(members)
+    fig, axes = plt.subplots(num_members, 3, figsize=(15, num_members * 4))
     fig.suptitle('Sample Images from Each Team Member', 
                  fontsize=16, fontweight='bold', y=0.98)
     

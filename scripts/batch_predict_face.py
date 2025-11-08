@@ -81,6 +81,7 @@ def batch_predict(image_paths, model_dir='../models', save_results=False, output
                 'predicted_user': result['predicted_user'],
                 'confidence': result['confidence'],
                 'alice_prob': result['probabilities']['Alice'],
+                'armstrong_prob': result['probabilities']['Armstrong'],
                 'cedric_prob': result['probabilities']['cedric'],
                 'yassin_prob': result['probabilities']['yassin']
             })
@@ -95,6 +96,7 @@ def batch_predict(image_paths, model_dir='../models', save_results=False, output
                 'predicted_user': 'ERROR',
                 'confidence': 0.0,
                 'alice_prob': 0.0,
+                'armstrong_prob': 0.0,
                 'cedric_prob': 0.0,
                 'yassin_prob': 0.0,
                 'error': str(e)
@@ -117,7 +119,7 @@ def batch_predict(image_paths, model_dir='../models', save_results=False, output
     
     if successful > 0:
         print(f"\nPrediction Distribution:")
-        for user in ['Alice', 'cedric', 'yassin']:
+        for user in ['Alice', 'Armstrong', 'cedric', 'yassin']:
             count = len(df_results[df_results['predicted_user'] == user])
             print(f"  {user}: {count} images")
         

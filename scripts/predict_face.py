@@ -38,7 +38,7 @@ class EnhancedFaceRecognitionPredictor:
         self.model_dir = (script_dir / model_dir).resolve()
         
         self.target_size = (224, 224)
-        self.user_mapping = {0: 'Alice', 1: 'cedric', 2: 'yassin'}
+        self.user_mapping = {0: 'Alice', 1: 'Armstrong', 2: 'cedric', 3: 'yassin'}
         self.confidence_threshold = confidence_threshold
         
         # Load the trained model and scaler
