@@ -1,12 +1,17 @@
 import pandas as pd
 import numpy as np
 import librosa
+import librosa.display
+import matplotlib.pyplot as plt
 import os
 
-
-# directories
+# --- Configuration ---
 AUDIO_DIR = '../data/audio' 
 OUTPUT_CSV = '../data/processed/audio_features.csv'
+PLOT_DIR = '../data/processed/audio_plots/'
+
+# Create the plot directory if it doesn't exist
+os.makedirs(PLOT_DIR, exist_ok=True)
 
 # Helper function to extract features
 def extract_features(y, sr):
@@ -61,22 +66,21 @@ def get_phrase_from_filename(filename):
         return "confirm"
     if "approve" in filename_lower:
         return "approve"
-    return "unknown" # Fallback for any other files
+    return "unknown"
 
-# --- Main script to build the CSV ---
-all_features = [] # This will be a list of dictionaries
+# Main script to build the CSV
+all_features = []
 
 print(f"Starting feature extraction from: {AUDIO_DIR}")
+print(f"Saving plots to: {PLOT_DIR}")
 
 for root, dirs, files in os.walk(AUDIO_DIR):
     for filename in files:
         # Process only .wav files
         if filename.endswith('.wav'):
             
-            # The member_id is the folder name (e.g., "Alice")
             member_id = os.path.basename(root)
             
-            # Get phrase from filename using our helper
             phrase = get_phrase_from_filename(filename)
             
             if phrase == "unknown":
@@ -91,8 +95,38 @@ for root, dirs, files in os.walk(AUDIO_DIR):
             except Exception as e:
                 print(f"Error loading {file_path}: {e}")
                 continue
+            
+            # Create a clean base filename for the plots
+            plot_basename = f"{member_id}_{phrase}_{filename.replace('.wav', '')}"
 
-            # Process original + augmentations
+            # Plot the Waveform
+            try:
+                plt.figure(figsize=(12, 4))
+                librosa.display.waveshow(y_orig, sr=sr_orig)
+                plt.title(f'Waveform: {member_id} - {phrase}')
+                plt.xlabel('Time (s)')
+                plt.ylabel('Amplitude')
+                plt.tight_layout()
+                plt.savefig(os.path.join(PLOT_DIR, f"{plot_basename}_waveform.png"))
+                plt.close()
+            
+                # Plot the Spectrogram
+                S = librosa.feature.melspectrogram(y=y_orig, sr=sr_orig, n_mels=128)
+                S_db = librosa.power_to_db(S, ref=np.max)
+                
+                plt.figure(figsize=(12, 4))
+                librosa.display.specshow(S_db, sr=sr_orig, x_axis='time', y_axis='mel')
+                plt.title(f'Mel Spectrogram: {member_id} - {phrase}')
+                plt.colorbar(format='%+2.0f dB')
+                plt.tight_layout()
+                plt.savefig(os.path.join(PLOT_DIR, f"{plot_basename}_spectrogram.png"))
+                plt.close()
+            
+            except Exception as e:
+                print(f"Error generating plot for {file_path}: {e}")
+
+
+            # Process original + augmentations for the CSV
             for aug_name, y_aug in get_augmentations(y_orig, sr_orig):
                 
                 # Extract features from the (potentially augmented) audio
@@ -133,3 +167,5 @@ if not df.empty:
     print(df.head())
 else:
     print("\nNo features were extracted. Please check your audio directory and file formats.")
+
+print(f"\nAll plots saved to {PLOT_DIR}")
