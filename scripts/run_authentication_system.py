@@ -79,7 +79,7 @@ def print_result_summary(result):
         if result['product_recommendation']:
             product = result['product_recommendation']
             if product['success']:
-                print(f"📦 Product Recommendation: ✅ READY ({product['product']})")
+                print(f"📦 Product Recommendation: 🔒 PENDING (awaiting voice verification)")
             else:
                 print(f"📦 Product Recommendation: ❌ FAILED")
         

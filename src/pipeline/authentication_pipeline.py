@@ -22,11 +22,54 @@ sys.path.insert(0, str(Config.PROJECT_ROOT / 'scripts'))
 from predict_face import EnhancedFaceRecognitionPredictor
 
 
+def extract_voice_features(audio_path):
+    """
+    Extract audio features from a voice recording.
+    Uses the same feature extraction process as Brian's training.
+    
+    Args:
+        audio_path: Path to the audio file
+        
+    Returns:
+        dict: Features in the format expected by the voice model
+    """
+    import librosa
+    
+    try:
+        # Load audio file
+        y, sr = librosa.load(audio_path, sr=None)
+        
+        # Extract MFCCs (13 coefficients)
+        mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+        mfccs_mean = np.mean(mfccs, axis=1)
+        
+        # Extract Spectral Roll-off
+        rolloff = librosa.feature.spectral_rolloff(y=y, sr=sr)
+        rolloff_mean = np.mean(rolloff)
+        
+        # Extract RMS Energy
+        rms = librosa.feature.rms(y=y)
+        rms_mean = np.mean(rms)
+        
+        # Combine features in the SAME ORDER as training CSV:
+        # mfcc_1 through mfcc_13, then spectral_rolloff, then rms_energy
+        features = {}
+        for i in range(13):
+            features[f'mfcc_{i+1}'] = mfccs_mean[i]
+        features['spectral_rolloff'] = rolloff_mean
+        features['rms_energy'] = rms_mean
+            
+        return features
+        
+    except Exception as e:
+        raise Exception(f"Error extracting voice features: {str(e)}")
+
+
 class MultimodalAuthenticationPipeline:
     """
     Complete authentication pipeline that combines:
     1. Face Recognition (WORKING)
-    2. Voice Verification (PLACEHOLDER - needs voice_verification_model.pkl)
+    2. Voice Verification (WORKING)
     3. Product Recommendation (PLACEHOLDER - needs product_recommender_model.pkl)
     """
     
@@ -71,28 +114,33 @@ class MultimodalAuthenticationPipeline:
             self.face_predictor = None
     
     def _load_voice_verification(self):
-        """Load voice verification model (PLACEHOLDER)"""
-        voice_model_path = self.models_dir / 'voice_verification_model.pkl'
-        voice_scaler_path = self.models_dir / 'voice_verification_scaler.pkl'
+        """Load voice verification model - Brian's Random Forest model"""
+        voice_model_path = self.models_dir / 'voice_model.joblib'
+        voice_scaler_path = self.models_dir / 'voice_scaler.joblib'
+        voice_encoder_path = self.models_dir / 'voice_encoder.joblib'
         
-        if voice_model_path.exists() and voice_scaler_path.exists():
+        if voice_model_path.exists() and voice_scaler_path.exists() and voice_encoder_path.exists():
             try:
                 self.voice_model = joblib.load(voice_model_path)
                 self.voice_scaler = joblib.load(voice_scaler_path)
+                self.voice_encoder = joblib.load(voice_encoder_path)
                 self.voice_ready = True
                 print("✅ Voice Verification Model Loaded")
+                print(f"   Can recognize: {', '.join(self.voice_encoder.classes_)}")
             except Exception as e:
                 print(f"⚠️  Voice model exists but failed to load: {e}")
                 self.voice_ready = False
                 self.voice_model = None
                 self.voice_scaler = None
+                self.voice_encoder = None
         else:
             print("⚠️  Voice Verification Model NOT FOUND (using placeholder)")
             print(f"   Expected: {voice_model_path}")
-            print(f"   Brian should provide: voice_verification_model.pkl & voice_verification_scaler.pkl")
+            print(f"   Brian should provide: voice_model.joblib, voice_scaler.joblib, voice_encoder.joblib")
             self.voice_ready = False
             self.voice_model = None
             self.voice_scaler = None
+            self.voice_encoder = None
     
     def _load_product_recommender(self):
         """Load product recommendation model (PLACEHOLDER)"""
@@ -169,7 +217,7 @@ class MultimodalAuthenticationPipeline:
     
     def verify_voice(self, audio_path, claimed_user):
         """
-        Step 2: Voice Verification (PLACEHOLDER)
+        Step 2: Voice Verification - Brian's Random Forest model
         
         Args:
             audio_path: Path to the audio file
@@ -179,6 +227,7 @@ class MultimodalAuthenticationPipeline:
             dict: {
                 'success': bool,
                 'confidence': float,
+                'predicted_user': str,
                 'message': str
             }
         """
@@ -186,33 +235,49 @@ class MultimodalAuthenticationPipeline:
             return {
                 'success': True,  # Placeholder accepts all
                 'confidence': 0.0,
+                'predicted_user': claimed_user,
                 'message': f'⚠️  PLACEHOLDER: Voice verification skipped (model not available)'
             }
         
-        # TODO: When Brian provides voice_verification_model.pkl, implement actual verification:
-        # 1. Extract audio features using librosa (MFCCs, spectral features)
-        # 2. Scale features using voice_scaler
-        # 3. Predict using voice_model
-        # 4. Check if predicted user matches claimed_user
-        # 5. Return confidence score
-        
         try:
-            # Actual implementation when model is available
-            # features = extract_voice_features(audio_path)
-            # features_scaled = self.voice_scaler.transform(features)
-            # prediction = self.voice_model.predict(features_scaled)
-            # confidence = self.voice_model.predict_proba(features_scaled).max()
+            # Extract audio features
+            features_dict = extract_voice_features(audio_path)
             
-            # For now, return placeholder
+            # Convert to DataFrame (features are already in correct order from extraction)
+            import pandas as pd
+            features_df = pd.DataFrame([features_dict])
+            
+            # Scale features
+            features_scaled = self.voice_scaler.transform(features_df)
+            
+            # Predict user
+            prediction_encoded = self.voice_model.predict(features_scaled)[0]
+            predicted_user = self.voice_encoder.inverse_transform([prediction_encoded])[0]
+            
+            # Get confidence (probability of predicted class)
+            probabilities = self.voice_model.predict_proba(features_scaled)[0]
+            confidence = probabilities[prediction_encoded]
+            
+            # Verify if predicted user matches claimed user
+            success = (predicted_user == claimed_user)
+            
+            if success:
+                message = f'✅ Voice verified: {predicted_user} (confidence: {confidence:.1%})'
+            else:
+                message = f'❌ Voice mismatch: Expected {claimed_user}, got {predicted_user} (confidence: {confidence:.1%})'
+            
             return {
-                'success': True,
-                'confidence': 0.0,
-                'message': f'⚠️  PLACEHOLDER: Voice verification for {claimed_user} skipped'
+                'success': success,
+                'confidence': float(confidence),
+                'predicted_user': predicted_user,
+                'message': message
             }
+            
         except Exception as e:
             return {
                 'success': False,
                 'confidence': 0.0,
+                'predicted_user': None,
                 'message': f'Error during voice verification: {str(e)}'
             }
     
