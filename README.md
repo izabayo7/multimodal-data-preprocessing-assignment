@@ -196,7 +196,7 @@ data/audio/your_name/
    - Save to `data/processed/merged_customer_data.csv`
 
 4. Build a product recommendation model:
-   - Use Random Forest, Logistic Regression, or XGBoost
+   - Use XGBoost (recommended), Logistic Regression, or Random Forest
    - Calculate accuracy, F1-score, and loss
    - Save to `models/product_recommender.pkl`
 
@@ -224,7 +224,7 @@ data/audio/your_name/
 
 5. Train a face recognition model:
 
-   - Use Random Forest, Logistic Regression, or XGBoost
+   - Use XGBoost (recommended), Logistic Regression, or Random Forest
    - Calculate accuracy, F1-score, and loss
    - Save to `models/face_recognition.pkl`
 
@@ -262,7 +262,7 @@ data/audio/your_name/
 
 5. Train a voice verification model:
 
-   - Use Random Forest, Logistic Regression, or XGBoost
+   - Use XGBoost (recommended), Logistic Regression, or Random Forest
    - Calculate accuracy, F1-score, and loss
    - Save to `models/voice_verification.pkl`
 
@@ -341,7 +341,7 @@ git push origin feature/your-task-name
 
 **All models must:**
 
-- Use Random Forest, Logistic Regression, or XGBoost
+- Use XGBoost (recommended), Logistic Regression, or Random Forest
 - Report accuracy, F1-score, and loss
 
 **Quick evaluation example:**
