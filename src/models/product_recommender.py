@@ -1,24 +1,15 @@
 import pandas as pd
 import numpy as np
-import joblib
+import pickle
 import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 import warnings
 warnings.filterwarnings('ignore')
 
-# XGBoost import with graceful fallback
-try:
-    import xgboost as xgb
-    XGBOOST_AVAILABLE = True
-    print("XGBoost imported successfully")
-except ImportError:
-    XGBOOST_AVAILABLE = False
-    print("Warning: XGBoost not installed. To install:")
-    print("   Option 1: pip install xgboost")
-    print("   Option 2: conda install xgboost")
-    print("   Falling back to Random Forest for now...")
-    from sklearn.ensemble import RandomForestClassifier
+# XGBoost import - REQUIRED (no fallback)
+import xgboost as xgb
+print("XGBoost imported successfully")
 
 from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
 from sklearn.metrics import accuracy_score, f1_score, log_loss, classification_report, confusion_matrix
@@ -32,7 +23,7 @@ from merge_data import prepare_features
 
 class ProductRecommender:
     """
-    XGBoost-based product category predictor
+    XGBoost-based product category predictor (XGBoost ONLY - no fallbacks)
     
     Predicts which product category (Sports, Electronics, Books, Groceries, Clothing)
     a customer is most likely to purchase based on their:
@@ -40,7 +31,8 @@ class ProductRecommender:
     - Purchase history and behavior
     - Sentiment analysis results
     
-    Uses XGBoost (eXtreme Gradient Boosting) for superior performance and built-in regularization.
+    Uses XGBoost (eXtreme Gradient Boosting) exclusively.
+    Model saved as pickle to models/xgboost_product_recommender.pkl
     """
     
     def __init__(self, random_state=42):
@@ -148,7 +140,6 @@ class ProductRecommender:
     def train_model(self, X_train, y_train, use_grid_search=True):
         """
         Train the XGBoost model with hyperparameter optimization
-        (Falls back to Random Forest if XGBoost is not available)
         
         Parameters:
         - X_train: Training features
@@ -159,15 +150,11 @@ class ProductRecommender:
         self._X_train_stored = X_train
         self._y_train_stored = y_train
         
-        if XGBOOST_AVAILABLE:
-            print("Training XGBoost model...")
-            self._train_xgboost_model(X_train, y_train, use_grid_search)
-        else:
-            print("Training Random Forest model (XGBoost fallback)...")
-            self._train_random_forest_model(X_train, y_train, use_grid_search)
+        print("Training XGBoost model...")
+        self._train_xgboost_model(X_train, y_train, use_grid_search)
         
         self.model_trained = True
-        print("Model training completed!")
+        print("XGBoost model training completed!")
     
     def _train_xgboost_model(self, X_train, y_train, use_grid_search):
         """Train XGBoost model with hyperparameter optimization"""
@@ -226,54 +213,7 @@ class ProductRecommender:
             )
             self.model.fit(X_train, y_train)
     
-    def _train_random_forest_model(self, X_train, y_train, use_grid_search):
-        """Train Random Forest model as fallback when XGBoost is not available"""
-        if use_grid_search:
-            print("Performing Random Forest hyperparameter optimization...")
-            
-            # Define hyperparameter grid for optimization
-            param_grid = {
-                'n_estimators': [50, 100, 150],
-                'max_depth': [8, 10, 12, None],
-                'min_samples_split': [2, 5, 10],
-                'min_samples_leaf': [1, 2, 4],
-                'max_features': ['sqrt', 'log2']
-            }
-            
-            # Create Random Forest classifier
-            rf = RandomForestClassifier(
-                random_state=self.random_state,
-                n_jobs=-1
-            )
-            
-            # Perform Grid Search with 5-fold cross-validation
-            grid_search = GridSearchCV(
-                rf, param_grid, cv=5, scoring='f1_weighted', 
-                n_jobs=-1, verbose=1
-            )
-            
-            # Fit the grid search
-            grid_search.fit(X_train, y_train)
-            
-            # Use the best model found
-            self.model = grid_search.best_estimator_
-            
-            print(f"Best Random Forest hyperparameters found:")
-            for param, value in grid_search.best_params_.items():
-                print(f"   {param}: {value}")
-            print(f"Best cross-validation F1-score: {grid_search.best_score_:.4f}")
-            
-        else:
-            print("Training Random Forest with default hyperparameters...")
-            # Use default Random Forest parameters
-            self.model = RandomForestClassifier(
-                n_estimators=100,
-                max_depth=10,
-                min_samples_split=5,
-                random_state=self.random_state,
-                n_jobs=-1
-            )
-            self.model.fit(X_train, y_train)
+
     
     def evaluate_model(self, X_test, y_test):
         """
@@ -536,38 +476,112 @@ class ProductRecommender:
     
     def save_model(self, model_path='../../models/xgboost_product_recommender.pkl'):
         """
-        Save the trained model and preprocessing objects
+        Save the trained XGBoost model and all preprocessing components using pickle
         
         Parameters:
-        - model_path: Path where to save the model file
+        - model_path: Path where to save the model file (default: models/xgboost_product_recommender.pkl)
+        
+        Returns:
+        - bool: True if saved successfully, False otherwise
         """
         if not self.model_trained:
-            print("Error: Model must be trained before saving!")
+            print("Error: No trained model to save. Train the model first.")
             return False
             
-        # Convert to absolute path
-        abs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), model_path))
-        os.makedirs(os.path.dirname(abs_path), exist_ok=True)
-        
-        # Package everything needed for prediction
-        model_package = {
-            'model': self.model,
-            'label_encoders': self.label_encoders,
-            'scaler': self.scaler,
-            'target_encoder': self.target_encoder,
-            'feature_cols': self.feature_cols,
-            'numerical_cols': self.numerical_cols,
-            'categorical_cols': self.categorical_cols
-        }
-        
         try:
-            joblib.dump(model_package, abs_path)
-            print(f"Model saved successfully to: {abs_path}")
+            # Convert relative path to absolute path
+            abs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), model_path))
+            
+            # Create directory if it doesn't exist
+            os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+            
+            # Package all necessary components
+            model_package = {
+                'model': self.model,
+                'label_encoders': self.label_encoders,
+                'scaler': self.scaler,
+                'target_encoder': self.target_encoder,
+                'feature_cols': self.feature_cols,
+                'numerical_cols': self.numerical_cols,
+                'categorical_cols': self.categorical_cols,
+                'model_trained': self.model_trained,
+                'random_state': self.random_state,
+                'model_type': 'XGBoost'
+            }
+            
+            # Save using pickle.dump() as requested
+            with open(abs_path, 'wb') as f:
+                pickle.dump(model_package, f)
+            
+            print(f"XGBoost model saved successfully to: {abs_path}")
+            print(f"Model type: XGBoost")
+            print(f"Features: {len(self.feature_cols)} total")
             return True
+            
         except Exception as e:
             print(f"Error saving model: {e}")
             return False
     
+    def load_model(self, model_path='../../models/xgboost_product_recommender.pkl'):
+        """
+        Load a previously trained XGBoost model and all preprocessing components using pickle
+        
+        Parameters:
+        - model_path: Path to the saved model file (default: models/xgboost_product_recommender.pkl)
+        
+        Returns:
+        - bool: True if loaded successfully, False otherwise
+        """
+        try:
+            # Convert relative path to absolute path
+            abs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), model_path))
+            
+            if not os.path.exists(abs_path):
+                print(f"Model file not found at: {abs_path}")
+                return False
+            
+            # Load the model package using pickle.load()
+            with open(abs_path, 'rb') as f:
+                model_package = pickle.load(f)
+            
+            # Restore all components
+            self.model = model_package['model']
+            self.label_encoders = model_package['label_encoders']
+            self.scaler = model_package['scaler']
+            self.target_encoder = model_package['target_encoder']
+            self.feature_cols = model_package['feature_cols']
+            self.numerical_cols = model_package['numerical_cols']
+            self.categorical_cols = model_package['categorical_cols']
+            self.model_trained = model_package['model_trained']
+            self.random_state = model_package.get('random_state', 42)
+            
+            model_type = model_package.get('model_type', 'XGBoost')
+            
+            print(f"XGBoost model loaded successfully from: {abs_path}")
+            print(f"Model type: {model_type}")
+            print(f"Features: {len(self.feature_cols)} total")
+            print(f"Categories: {list(self.target_encoder.classes_)}")
+            print("XGBoost model ready for predictions!")
+            
+            return True
+            
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            return False
+
+    def model_exists(self, model_path='../../models/xgboost_product_recommender.pkl'):
+        """
+        Check if a saved XGBoost model exists at the specified path
+        
+        Parameters:
+        - model_path: Path to check for saved model (default: models/xgboost_product_recommender.pkl)
+        
+        Returns:
+        - bool: True if model file exists, False otherwise
+        """
+        abs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), model_path))
+        return os.path.exists(abs_path)
+
     def predict_product_category(self, customer_data):
         """
         Predict product category for new customer data

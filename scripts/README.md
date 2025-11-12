@@ -1,8 +1,10 @@
 # Product Category Prediction Scripts
 
-## Single Unified Script
+This directory contains the complete XGBoost-based product prediction system with model persistence.
 
-### `product_predictor.py` - All-in-One Solution
+## Main Scripts
+
+### `product_predictor.py` - Interactive Prediction System
 **Complete product category prediction system with multiple modes:**
 
 **Features:**
@@ -10,24 +12,51 @@
 - Interactive Predictor (2-3 minutes) - Daily use with custom input
 - Business Demo (2 minutes) - Pre-built sample demonstrations  
 - Maximum Accuracy (5-10 minutes) - Full optimization for production
-- User-friendly menu system
+- Automatic model loading/saving
 - Real-time predictions with confidence scores
 - Business recommendations and insights
 
-**Usage:**
 ```bash
-# Activate virtual environment
-source venv/bin/activate
-
-# Run the unified predictor
 python scripts/product_predictor.py
 ```
 
-**Available Modes:**
-1. **Quick Test** - Verify system works, basic functionality test
-2. **Interactive Predictor** - Full interactive system with optimized training (RECOMMENDED)
-3. **Business Demo** - Pre-built demo with sample customers
-4. **Maximum Accuracy** - Full hyperparameter optimization for best performance
+### `train_model.py` - Model Training Pipeline
+**Dedicated script for training and saving production models:**
+
+**Features:**
+- Optimized XGBoost training with grid search
+- Model persistence for production deployment
+- Performance evaluation and reporting
+- Automatic model saving to `models/` directory
+
+```bash
+python scripts/train_model.py
+```
+
+### `batch_predict.py` - Batch Prediction Pipeline
+**Production script for automated predictions:**
+
+**Features:**
+- Batch processing of CSV files
+- Automatic model loading
+- Confidence scores and probabilities
+- Perfect for automated pipelines
+
+```bash
+# Batch predictions with custom files
+python scripts/batch_predict.py input.csv output.csv
+
+# Use default files
+python scripts/batch_predict.py
+```
+
+## Model Persistence
+
+**Model Lifecycle:**
+1. Train model with `train_model.py` 
+2. Model saved to `models/product_recommender.pkl`
+3. All scripts auto-load existing models
+4. Production-ready deployment
 
 ## Model Performance
 
