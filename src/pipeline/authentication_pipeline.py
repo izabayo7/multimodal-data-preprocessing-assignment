@@ -143,24 +143,47 @@ class MultimodalAuthenticationPipeline:
             self.voice_encoder = None
     
     def _load_product_recommender(self):
-        """Load product recommendation model (PLACEHOLDER)"""
-        product_model_path = self.models_dir / 'product_recommender_model.pkl'
+        """Load product recommendation model"""
+        product_model_path = self.models_dir / 'xgboost_product_recommender.pkl'
+        
+        # Static mapping: Face recognition names → Customer IDs in merged dataset
+        # NOTE: This is a temporary mapping since the customer_social_profiles.csv
+        # uses customer IDs but our face/voice recognition uses actual member names.
+        # In production, this should come from a database with proper user profiles.
+        # These IDs were verified to exist in merged_customer_data.csv
+        self.user_to_customer_mapping = {
+            'Alice': 150,         # Alice maps to customer 150
+            'Armstrong': 177,     # Armstrong maps to customer 177 (178 not available)
+            'cedric': 190,        # Cedric maps to customer 190
+            'yassin': 162         # Yassin maps to customer 162
+        }
         
         if product_model_path.exists():
             try:
-                self.product_model = joblib.load(product_model_path)
-                self.product_ready = True
-                print("✅ Product Recommendation Model Loaded")
+                # Alice's model is packaged with ProductRecommender class
+                # We need to import it and use load_model method
+                import sys
+                sys.path.insert(0, str(Config.PROJECT_ROOT / 'src' / 'models'))
+                from product_recommender import ProductRecommender
+                
+                self.product_recommender = ProductRecommender()
+                if self.product_recommender.load_model(str(product_model_path)):
+                    self.product_ready = True
+                    print("✅ Product Recommendation Model Loaded")
+                else:
+                    print("⚠️  Product model exists but failed to load")
+                    self.product_ready = False
+                    self.product_recommender = None
             except Exception as e:
                 print(f"⚠️  Product model exists but failed to load: {e}")
                 self.product_ready = False
-                self.product_model = None
+                self.product_recommender = None
         else:
             print("⚠️  Product Recommendation Model NOT FOUND (using placeholder)")
             print(f"   Expected: {product_model_path}")
-            print(f"   Alice should provide: product_recommender_model.pkl")
+            print(f"   Alice should provide: xgboost_product_recommender.pkl")
             self.product_ready = False
-            self.product_model = None
+            self.product_recommender = None
     
     def authenticate_face(self, image_path):
         """
@@ -283,10 +306,10 @@ class MultimodalAuthenticationPipeline:
     
     def recommend_product(self, user):
         """
-        Step 3: Product Recommendation (PLACEHOLDER)
+        Step 3: Product Recommendation - Alice's XGBoost model
         
         Args:
-            user: Authenticated user name
+            user: Authenticated user name (Alice, Armstrong, cedric, yassin)
             
         Returns:
             dict: {
@@ -306,27 +329,51 @@ class MultimodalAuthenticationPipeline:
                 'message': f'⚠️  PLACEHOLDER: Generic product recommendation (model not available)'
             }
         
-        # TODO: When Alice provides product_recommender_model.pkl, implement actual recommendation:
-        # 1. Load user's transaction history from merged_customer_data.csv
-        # 2. Extract features (engagement_score, purchase_interest, sentiment, etc.)
-        # 3. Predict product category using product_model
-        # 4. Return top recommended product with confidence
-        
         try:
-            # Actual implementation when model is available
-            # user_data = load_user_data(user)
-            # features = extract_features(user_data)
-            # prediction = self.product_model.predict(features)
-            # confidence = self.product_model.predict_proba(features).max()
+            # Map user name to customer ID
+            # NOTE: This is a static mapping since merged_customer_data.csv uses 
+            # customer IDs but authentication uses member names.
+            # In production, this should query a database with user profiles.
+            customer_id = self.user_to_customer_mapping.get(user)
             
-            # For now, return placeholder
-            return {
-                'success': True,
-                'product': 'Electronics',
-                'category': 'General',
-                'confidence': 0.0,
-                'message': f'⚠️  PLACEHOLDER: Product recommendation for {user} (model pending)'
-            }
+            if not customer_id:
+                return {
+                    'success': False,
+                    'product': None,
+                    'category': None,
+                    'confidence': 0.0,
+                    'message': f'Error: No customer mapping found for user {user}'
+                }
+            
+            # Load user's most recent transaction data for prediction
+            import pandas as pd
+            merged_data_path = Config.PROCESSED_DIR / 'merged_customer_data.csv'
+            df = pd.read_csv(merged_data_path)
+            
+            # Get user's most recent transaction
+            user_data = df[df['customer_id'] == customer_id].iloc[-1].to_dict()
+            
+            # Predict product category using Alice's model
+            predicted_category, probabilities = self.product_recommender.predict_product_category(user_data)
+            
+            if predicted_category:
+                confidence = probabilities.get(predicted_category, 0.0)
+                return {
+                    'success': True,
+                    'product': predicted_category,
+                    'category': predicted_category,
+                    'confidence': float(confidence),
+                    'message': f'✅ Product recommendation: {predicted_category} (confidence: {confidence:.1%})'
+                }
+            else:
+                return {
+                    'success': False,
+                    'product': None,
+                    'category': None,
+                    'confidence': 0.0,
+                    'message': 'Error: Model prediction failed'
+                }
+                
         except Exception as e:
             return {
                 'success': False,
