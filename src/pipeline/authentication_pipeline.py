@@ -383,7 +383,7 @@ class MultimodalAuthenticationPipeline:
                 'message': f'Error during product recommendation: {str(e)}'
             }
     
-    def authenticate(self, image_path, audio_path=None):
+    def authenticate(self, image_path, audio_path=None, face_result=None):
         """
         Complete authentication pipeline following the assignment flow:
         
@@ -396,6 +396,7 @@ class MultimodalAuthenticationPipeline:
         Args:
             image_path: Path to face image
             audio_path: Path to audio file (REQUIRED for voice verification)
+            face_result: Pre-validated face recognition result (optional, skips face recognition if provided)
             
         Returns:
             dict: Complete authentication result with all steps
@@ -404,9 +405,13 @@ class MultimodalAuthenticationPipeline:
         print("MULTIMODAL AUTHENTICATION PIPELINE")
         print("="*60)
         
-        # Step 1: Face Recognition - Identify the user
-        print("\n[Step 1/3] Face Recognition...")
-        face_result = self.authenticate_face(image_path)
+        # Step 1: Face Recognition - Identify the user (skip if already done)
+        if face_result is None:
+            print("\n[Step 1/3] Face Recognition...")
+            face_result = self.authenticate_face(image_path)
+        else:
+            print("\n[Step 1/3] Face Recognition... ✅ Already verified")
+            print(f"   ✅ Face recognized: {face_result['user']} (confidence: {face_result['confidence']:.2%})")
         
         if not face_result['success']:
             print(f"   ❌ Face recognition failed: {face_result['message']}")
@@ -426,16 +431,13 @@ class MultimodalAuthenticationPipeline:
         identified_user = face_result['user']
         print(f"   ✅ Face recognized: {identified_user} (confidence: {face_result['confidence']:.2%})")
         
-        # Step 2: Product Recommendation - Generate prediction for the user
+        # Step 2: Product Recommendation - Generate prediction for the user (but don't reveal it yet)
         print(f"\n[Step 2/3] Product Recommendation for {identified_user}...")
         product_result = self.recommend_product(identified_user)
         
         if product_result['success']:
-            print(f"   📦 Product predicted: {product_result['product']}")
-            if product_result['confidence'] > 0:
-                print(f"   📊 Confidence: {product_result['confidence']:.2%}")
-            else:
-                print(f"   ⚠️  {product_result['message']}")
+            print(f"   📦 Generating personalized recommendation...")
+            print(f"   ✅ Product recommendation ready (will be revealed after voice verification)")
         else:
             print(f"   ❌ Product recommendation failed: {product_result['message']}")
             print("\n" + "="*60)
@@ -477,8 +479,7 @@ class MultimodalAuthenticationPipeline:
             print(f"   ❌ Voice verification failed: {voice_result['message']}")
             print("\n" + "="*60)
             print("❌ ACCESS DENIED - Voice verification failed")
-            print(f"   Prediction was ready: {product_result['product']}")
-            print(f"   But voice did not match {identified_user}")
+            print(f"   Cannot display product recommendation - authentication incomplete")
             print("="*60 + "\n")
             return {
                 'authenticated': False,

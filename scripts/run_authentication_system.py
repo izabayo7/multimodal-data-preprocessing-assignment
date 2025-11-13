@@ -117,12 +117,12 @@ def interactive_mode(pipeline):
         
         break
     
-    # First, verify the face
-    print("\n🔄 Checking face recognition...")
+    # Run face recognition first to check if we should proceed
+    print("\n🔄 Verifying face...")
     face_result = pipeline.authenticate_face(str(image_path))
     
     if not face_result['success']:
-        print(f"\n❌ Face recognition failed: {face_result['message']}")
+        print(f"❌ Face recognition failed: {face_result['message']}")
         print("❌ ACCESS DENIED\n")
         
         # Ask to try again
@@ -134,19 +134,20 @@ def interactive_mode(pipeline):
     identified_user = face_result['user']
     print(f"✅ Face recognized: {identified_user} (confidence: {face_result['confidence']:.2%})")
     
-    # Step 2: Now that face is recognized, ask for voice verification
+    # Step 2: Only ask for voice if face passed
     print(f"\nStep 2: Voice Verification for {identified_user}")
-    print("Voice verification is required to confirm prediction and grant access")
+    print("Voice verification is required to complete authentication and view product recommendation")
     
     while True:
-        audio_path = input(f"Enter path to {identified_user}'s audio file (or 'skip' to see access denied): ").strip()
+        audio_path = input(f"\nEnter path to {identified_user}'s audio file (or 'skip' to see access denied): ").strip()
         
         if audio_path.lower() == 'skip':
             # Run without audio to show the denial
             print("\n🔄 Processing without voice verification...")
             result = pipeline.authenticate(
                 image_path=str(image_path),
-                audio_path=None
+                audio_path=None,
+                face_result=face_result  # Pass pre-validated result
             )
             print_result_summary(result)
             break
@@ -157,11 +158,12 @@ def interactive_mode(pipeline):
             print("Try again or type 'skip' to proceed without audio.")
             continue
         
-        # Run complete authentication
-        print("\n🔄 Running complete authentication pipeline...")
+        # Run complete authentication with pre-validated face result
+        print("\n🔄 Proceeding with product recommendation and voice verification...")
         result = pipeline.authenticate(
             image_path=str(image_path),
-            audio_path=str(audio_path)
+            audio_path=str(audio_path),
+            face_result=face_result  # Pass pre-validated result to skip redundant face check
         )
         print_result_summary(result)
         break
